@@ -32,11 +32,18 @@ app = FastAPI(title="Hackathon Agent Hub", version="0.2.0", lifespan=lifespan)
 # --- Robust input handling ---
 
 def sanitize_name(name: str) -> str:
-    """Make agent names filesystem-safe while keeping them readable."""
+    """Make agent names filesystem-safe while keeping them readable.
+    Allows one '/' separator for team/nickname format."""
     name = name.strip().lower()
-    name = re.sub(r'[^\w\-]', '-', name)  # replace non-word chars with dash
-    name = re.sub(r'-+', '-', name).strip('-')  # collapse multiple dashes
-    return name[:64] or "anonymous"
+    # Split on '/' to preserve team/nickname structure
+    parts = name.split("/", 1)
+    cleaned = []
+    for part in parts:
+        part = re.sub(r'[^\w\-]', '-', part)
+        part = re.sub(r'-+', '-', part).strip('-')
+        if part:
+            cleaned.append(part[:64])
+    return "/".join(cleaned) or "anonymous"
 
 def truncate(s: str, maxlen: int = 10000) -> str:
     """Prevent absurdly long messages from blowing things up."""
@@ -116,15 +123,16 @@ async def catch_all(request: Request, exc: Exception):
 
 # --- API ---
 
-@app.post("/register/{agent}")
+@app.post("/register/{agent:path}")
 def register(agent: str, desc: str = ""):
     agent = sanitize_name(agent)
     desc = truncate(desc, 500)
     info = {"name": agent, "description": desc, "registered_at": now(),
             "last_seen": now(), "message_count": 0}
     agents[agent] = info
-    write_file(f"agents/{agent}/profile.json", info)
-    os.makedirs(os.path.join(REPO_DIR, f"inbox/{agent}"), exist_ok=True)
+    safe_agent = agent.replace("/", "_")
+    write_file(f"agents/{safe_agent}/profile.json", info)
+    os.makedirs(os.path.join(REPO_DIR, f"inbox/{safe_agent}"), exist_ok=True)
     commit(f"Register agent: {agent}")
     return {"ok": True, "agent": agent, "total_agents": len(agents)}
 
@@ -139,8 +147,9 @@ def send(msg: Message):
     if from_name not in agents:
         agents[from_name] = {"name": from_name, "description": "auto-registered",
                              "registered_at": now(), "last_seen": now(), "message_count": 0}
-        write_file(f"agents/{from_name}/profile.json", agents[from_name])
-        os.makedirs(os.path.join(REPO_DIR, f"inbox/{from_name}"), exist_ok=True)
+        safe_from = from_name.replace("/", "_")
+        write_file(f"agents/{safe_from}/profile.json", agents[from_name])
+        os.makedirs(os.path.join(REPO_DIR, f"inbox/{safe_from}"), exist_ok=True)
 
     entry = {"id": uuid.uuid4().hex[:8], "timestamp": now(),
              "from_agent": from_name, "to_agent": to_name,
@@ -151,16 +160,18 @@ def send(msg: Message):
 
     # Write to git repo
     ts = entry["timestamp"].replace(":", "-")[:19]
-    fn = f"{ts}_{from_name}_{entry['id']}.json"
+    safe_from = from_name.replace("/", "_")
+    fn = f"{ts}_{safe_from}_{entry['id']}.json"
     if to_name == "all":
         write_file(f"feed/{fn}", entry)
     else:
-        write_file(f"inbox/{to_name}/{fn}", entry)
+        safe_to = to_name.replace("/", "_")
+        write_file(f"inbox/{safe_to}/{fn}", entry)
     commit(f"{from_name} -> {to_name}: {subject[:80]}")
 
     return {"ok": True, "id": entry["id"], "total_messages": len(messages)}
 
-@app.get("/inbox/{agent}")
+@app.get("/inbox/{agent:path}")
 def inbox(agent: str, since: int = 0):
     agent = sanitize_name(agent)
     if agent in agents:
@@ -169,7 +180,7 @@ def inbox(agent: str, since: int = 0):
             if m["to_agent"] in (agent, "all") and m["from_agent"] != agent]
     return {"agent": agent, "count": len(msgs), "messages": msgs}
 
-@app.get("/conversation/{a}/{b}")
+@app.get("/conversation")
 def conversation(a: str, b: str):
     a, b = sanitize_name(a), sanitize_name(b)
     t = [m for m in messages

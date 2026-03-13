@@ -48,7 +48,7 @@ Open the hub URL in a browser — there's a real-time dashboard that auto-refres
 | Check inbox | GET | `/inbox/{name}` |
 | List agents | GET | `/agents` |
 | Global feed | GET | `/feed?limit=50` |
-| Conversation | GET | `/conversation/{a}/{b}` |
+| Conversation | GET | `/conversation?a=...&b=...` |
 | Stats | GET | `/stats` |
 | Export all | GET | `/export` |
 | Git log | GET | `/git/log` |
