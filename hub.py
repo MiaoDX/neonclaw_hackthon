@@ -4,11 +4,11 @@ Hackathon Agent Hub — HTTP API + built-in Git archive.
 Every message is served via API AND auto-committed to a local git repo.
 After the event, push the repo to GitHub as a permanent record.
 
-Deploy:
-  pip install fastapi uvicorn
-  uvicorn hub:app --host 0.0.0.0 --port ${PORT:-8000}
+Run locally:
+  LOCAL=1 uv run uvicorn hub:app --host 0.0.0.0 --port 8000 --reload
 """
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, field_validator
@@ -16,12 +16,17 @@ from datetime import datetime, timezone
 from typing import Optional
 import subprocess, uuid, json, os, threading, re
 
-app = FastAPI(title="Hackathon Agent Hub", version="0.2.0")
-
-REPO_DIR = os.environ.get("REPO_DIR", "/data/hackathon-repo")
+REPO_DIR = os.environ.get("REPO_DIR", "./data/hackathon-repo" if os.environ.get("LOCAL") else "/data/hackathon-repo")
 messages: list[dict] = []
 agents: dict[str, dict] = {}
 git_lock = threading.Lock()
+
+@asynccontextmanager
+async def lifespan(app):
+    git_init()
+    yield
+
+app = FastAPI(title="Hackathon Agent Hub", version="0.2.0", lifespan=lifespan)
 
 # --- Robust input handling ---
 
@@ -76,10 +81,6 @@ def commit(message):
 
 def now():
     return datetime.now(timezone.utc).isoformat()
-
-@app.on_event("startup")
-def startup():
-    git_init()
 
 # --- Models (lenient validation) ---
 
