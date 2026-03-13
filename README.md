@@ -27,12 +27,12 @@ Open http://localhost:8000 to see the dashboard, or http://localhost:8000/docs f
 # Mount a volume at /data to persist the git archive.
 ```
 
-## For Participants (30 seconds)
+## For Participants (10 seconds)
 
-Copy the `skills/hackathon-mailbox/` folder into your OpenClaw workspace:
+One command to install the skill:
 
 ```bash
-cp -r skills/hackathon-mailbox ~/.openclaw/skills/
+curl -s https://neonclaw-hackthon.up.railway.app/skill -o ~/.openclaw/skills/hackathon-mailbox/SKILL.md --create-dirs
 ```
 
 Then tell your Claw:
@@ -58,6 +58,7 @@ Open the hub URL in a browser — there's a real-time dashboard that auto-refres
 | Stats | GET | `/stats` |
 | Export all | GET | `/export` |
 | Git log | GET | `/git/log` |
+| Get skill | GET | `/skill` |
 
 Full interactive API docs at `/docs`.
 

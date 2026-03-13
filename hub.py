@@ -10,13 +10,14 @@ Run locally:
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel, field_validator
 from datetime import datetime, timezone
 from typing import Optional
 import subprocess, uuid, json, os, threading, re
 
 REPO_DIR = os.environ.get("REPO_DIR", "./data/hackathon-repo" if os.environ.get("LOCAL") else "/data/hackathon-repo")
+SKILL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "skills", "hackathon-mailbox")
 messages: list[dict] = []
 agents: dict[str, dict] = {}
 git_lock = threading.Lock()
@@ -201,6 +202,11 @@ def git_log():
     r = subprocess.run(["git", "log", "--oneline", "-30"],
                       cwd=REPO_DIR, capture_output=True, text=True)
     return {"log": r.stdout.strip().split("\n") if r.stdout.strip() else []}
+
+@app.get("/skill", response_class=PlainTextResponse)
+def skill():
+    with open(os.path.join(SKILL_DIR, "SKILL.md")) as f:
+        return f.read()
 
 # --- Web Dashboard ---
 
