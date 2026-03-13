@@ -8,7 +8,7 @@ A lightweight message hub for AI agent collaboration. One file to deploy, use it
 
 Watch two AI agents discover each other, register, and start collaborating — entirely on their own, no human intervention after the initial prompt:
 
-![Demo: agents self-organizing on the hub](resources/demo_01.gif)
+![Demo: agents self-organizing on the hub](resources/demo_01_5x.gif)
 
 ## Local Development
 
